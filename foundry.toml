@@ -5,5 +5,6 @@ libs = ['lib']
 solc = "0.8.10"
 remappings = [
     "solmate/=lib/solmate/src/",
+    "@openzeppelin/=lib/openzeppelin-contracts/"
 ]
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
