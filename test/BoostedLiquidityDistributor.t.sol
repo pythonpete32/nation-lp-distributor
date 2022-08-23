@@ -5,7 +5,7 @@ import {DSTestPlus} from "./utils/DSTestPlus.sol";
 import {Signatures as sig} from "./utils/Signatures.sol";
 import {Hevm} from "./utils/Hevm.sol";
 import {MockERC20} from "./utils/mocks/MockERC20.sol";
-import {BoostedLiquidityDistributor} from "../distributors/BoostedLiquidityDistributor.sol";
+import {BoostedLiquidityDistributor} from "../src/BoostedLiquidityDistributor.sol";
 
 contract BoostedLiquidityDistributorTest is DSTestPlus {
     Hevm evm = Hevm(HEVM_ADDRESS);
@@ -20,15 +20,26 @@ contract BoostedLiquidityDistributorTest is DSTestPlus {
     uint256 public constant rewardsPeriod = 300; // Blocks
 
     function setUp() public {
-        rewardsToken = new MockERC20("Nation3 Network Token", "NATION", tokenSupply);
-        lpToken = new MockERC20("ETH/NATION Balancer Token", "ETHNATION", tokenSupply);
+        rewardsToken = new MockERC20(
+            "Nation3 Network Token",
+            "NATION",
+            tokenSupply
+        );
+        lpToken = new MockERC20(
+            "ETH/NATION Balancer Token",
+            "ETHNATION",
+            tokenSupply
+        );
         boostToken = new MockERC20("Vote-escrowed NATION", "veNATION", 0);
 
         distributor = new BoostedLiquidityDistributor();
         distributor.initialize(rewardsToken, lpToken, address(boostToken));
     }
 
-    function setRewards() public returns (uint256 startBlock, uint256 endBlock) {
+    function setRewards()
+        public
+        returns (uint256 startBlock, uint256 endBlock)
+    {
         rewardsToken.transfer(address(distributor), totalRewards);
 
         startBlock = block.number + 5;
@@ -252,7 +263,11 @@ contract BoostedLiquidityDistributorTest is DSTestPlus {
         assertApproxEq(userRewards, (totalRewards * 5) / 8, 5);
 
         // Reduce decrease pending rewards by 25%
-        distributor.setRewards((totalRewards * 3) / 4, block.number + 5, newEnd);
+        distributor.setRewards(
+            (totalRewards * 3) / 4,
+            block.number + 5,
+            newEnd
+        );
 
         // Fastforward to end of the rewards period
         evm.roll(newEnd);
@@ -284,7 +299,10 @@ contract BoostedLiquidityDistributorTest is DSTestPlus {
         MockERC20 token = new MockERC20("Token", "TK", 200 * 1e18);
         token.transfer(address(distributor), 100 * 1e18);
 
-        uint256 tokensRecovered = distributor.recoverTokens(token, address(0xBABE));
+        uint256 tokensRecovered = distributor.recoverTokens(
+            token,
+            address(0xBABE)
+        );
 
         assertEq(tokensRecovered, 100 * 1e18);
         assertEq(token.balanceOf(address(0xBABE)), tokensRecovered);
@@ -298,7 +316,10 @@ contract BoostedLiquidityDistributorTest is DSTestPlus {
         lpToken.transfer(address(distributor), 100 * 1e18);
 
         // Only can recover not staked tokens
-        uint256 tokensRecovered = distributor.recoverTokens(lpToken, address(0xBABE));
+        uint256 tokensRecovered = distributor.recoverTokens(
+            lpToken,
+            address(0xBABE)
+        );
 
         assertEq(tokensRecovered, 100 * 1e18);
         assertEq(lpToken.balanceOf(address(0xBABE)), tokensRecovered);
@@ -313,7 +334,10 @@ contract BoostedLiquidityDistributorTest is DSTestPlus {
         evm.roll(startBlock + rewardsPeriod / 2);
 
         // Only can recover tokens not reserved as rewards
-        uint256 tokensRecovered = distributor.recoverTokens(rewardsToken, address(0xBABE));
+        uint256 tokensRecovered = distributor.recoverTokens(
+            rewardsToken,
+            address(0xBABE)
+        );
         assertEq(tokensRecovered, 200 * 1e18);
         assertEq(rewardsToken.balanceOf(address(0xBABE)), tokensRecovered);
     }
@@ -445,8 +469,16 @@ contract BoostedLiquidityDistributorTest is DSTestPlus {
         rewardsToken.transfer(address(distributor), distributedRewards * 2);
 
         evm.expectRevert(sig.selector("InvalidRewardsAmount()"));
-        distributor.setRewards(distributedRewards, block.number + 10, block.number + 100);
+        distributor.setRewards(
+            distributedRewards,
+            block.number + 10,
+            block.number + 100
+        );
 
-        distributor.setRewards(distributedRewards * 2, block.number + 10, block.number + 100);
+        distributor.setRewards(
+            distributedRewards * 2,
+            block.number + 10,
+            block.number + 100
+        );
     }
 }

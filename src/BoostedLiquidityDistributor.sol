@@ -3,8 +3,8 @@ pragma solidity =0.8.10;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {SafeTransferLib} from "@rari-capital/solmate/src/utils/SafeTransferLib.sol";
-import {ERC20} from "@rari-capital/solmate/src/tokens/ERC20.sol";
+import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
+import {ERC20} from "solmate/tokens/ERC20.sol";
 
 /// @notice Distributes rewards to LP providers.
 /// @author Nation3 (https://github.com/nation3/app/blob/main/contracts/src/distributors/BoostedLiquidityDistributor.sol).
@@ -36,7 +36,11 @@ contract BoostedLiquidityDistributor is Initializable, Ownable {
     event Claim(address indexed user, uint256 rewards);
     event Deposit(address indexed user, uint256 amount);
     event Withdraw(address indexed user, uint256 amount);
-    event UpdatedBalances(address account, uint256 balance, uint256 totalBalance);
+    event UpdatedBalances(
+        address account,
+        uint256 balance,
+        uint256 totalBalance
+    );
 
     /*///////////////////////////////////////////////////////////////
                         INMUTABLES / CONSTANTS
@@ -132,14 +136,17 @@ contract BoostedLiquidityDistributor is Initializable, Ownable {
 
         uint256 _distributedRewards = distributedRewards; // Gas savings
         if (amount <= _distributedRewards) revert InvalidRewardsAmount();
-        if (amount - distributedRewards > rewardsToken.balanceOf(address(this))) revert InsufficientRewardsBalance();
+        if (amount - distributedRewards > rewardsToken.balanceOf(address(this)))
+            revert InsufficientRewardsBalance();
 
         // Set / reset variables
         totalRewards = amount;
         startBlock = _startBlock;
         endBlock = _endBlock;
         // Compute rewards that must be distributed each block, precision correction applied.
-        _blockRewards = ((amount - _distributedRewards) * PRECISION) / (_endBlock - _startBlock);
+        _blockRewards =
+            ((amount - _distributedRewards) * PRECISION) /
+            (_endBlock - _startBlock);
 
         emit RewardsSet(amount, _startBlock, _endBlock);
     }
@@ -147,7 +154,12 @@ contract BoostedLiquidityDistributor is Initializable, Ownable {
     /// @notice Allow the owner to withdraw any ERC20 sent to the contract.
     /// @param token Token to withdraw.
     /// @param to Recipient address of the tokens.
-    function recoverTokens(ERC20 token, address to) external virtual onlyOwner returns (uint256 amount) {
+    function recoverTokens(ERC20 token, address to)
+        external
+        virtual
+        onlyOwner
+        returns (uint256 amount)
+    {
         amount = token.balanceOf(address(this));
         if (token == lpToken) {
             amount = amount - totalDeposit;
@@ -165,7 +177,12 @@ contract BoostedLiquidityDistributor is Initializable, Ownable {
     /// @notice Returns the quantity of unclaimed rewards earned by `account`.
     /// @param account The account of deposited LP tokens.
     /// @return The quantity of unclaimed rewards tokens.
-    function getUnclaimedRewards(address account) external view virtual returns (uint256) {
+    function getUnclaimedRewards(address account)
+        external
+        view
+        virtual
+        returns (uint256)
+    {
         return _userDistributedRewards[account] - _userClaimedRewards[account];
     }
 
@@ -174,7 +191,8 @@ contract BoostedLiquidityDistributor is Initializable, Ownable {
     /// @dev Only if their boost power expired.
     function kick(address account) external virtual {
         uint256 _userDeposit = userDeposit[account];
-        if (userBalance[account] <= (_userDeposit * BOOSTLESS_PRODUCTION) / 100) revert KickNotAllowed();
+        if (userBalance[account] <= (_userDeposit * BOOSTLESS_PRODUCTION) / 100)
+            revert KickNotAllowed();
         if (boostToken.balanceOf(account) > 0) revert KickNotAllowed();
 
         _distributeRewards(account);
@@ -237,11 +255,14 @@ contract BoostedLiquidityDistributor is Initializable, Ownable {
         if (block.number > startBlock) _distributeRewards(msg.sender);
 
         // Get unclaimed rewards
-        uint256 unclaimedRewards = _userDistributedRewards[msg.sender] - _userClaimedRewards[msg.sender];
+        uint256 unclaimedRewards = _userDistributedRewards[msg.sender] -
+            _userClaimedRewards[msg.sender];
         if (unclaimedRewards <= 0) revert InsufficientRewardsBalance();
 
         // Register claimed rewards and transfer out
-        _userClaimedRewards[msg.sender] = _userClaimedRewards[msg.sender] + unclaimedRewards;
+        _userClaimedRewards[msg.sender] =
+            _userClaimedRewards[msg.sender] +
+            unclaimedRewards;
 
         _updateBalances(msg.sender, userDeposit[msg.sender], totalDeposit);
 
@@ -255,17 +276,25 @@ contract BoostedLiquidityDistributor is Initializable, Ownable {
     /// @notice Withdraw all LP tokens and unclaimed rewards to sender.
     /// @return withdrawAmount The staking amount drained.
     /// @return unclaimedRewards The quantity of rewards tokens claimed.
-    function withdrawAndClaim() external virtual returns (uint256 withdrawAmount, uint256 unclaimedRewards) {
+    function withdrawAndClaim()
+        external
+        virtual
+        returns (uint256 withdrawAmount, uint256 unclaimedRewards)
+    {
         // Distribute rewards to account
         if (block.number > startBlock) _distributeRewards(msg.sender);
 
         withdrawAmount = userDeposit[msg.sender];
-        unclaimedRewards = _userDistributedRewards[msg.sender] - _userClaimedRewards[msg.sender];
+        unclaimedRewards =
+            _userDistributedRewards[msg.sender] -
+            _userClaimedRewards[msg.sender];
 
         // Drain account staking and update claimed rewards
         userDeposit[msg.sender] = 0;
         totalDeposit = totalDeposit - withdrawAmount;
-        _userClaimedRewards[msg.sender] = _userClaimedRewards[msg.sender] + unclaimedRewards;
+        _userClaimedRewards[msg.sender] =
+            _userClaimedRewards[msg.sender] +
+            unclaimedRewards;
 
         _updateBalances(msg.sender, 0, totalDeposit);
 
@@ -298,7 +327,9 @@ contract BoostedLiquidityDistributor is Initializable, Ownable {
         // min((userDeposit * 0.4) + (totalDeposit * userVotingPower / totalVotingPower * 0.6), (userDeposit * 0.4))
         uint256 workingBalance = (_userDeposit * BOOSTLESS_PRODUCTION) / 100;
         if (totalPower > 0) {
-            workingBalance += (_totalDeposit * userPower * (100 - BOOSTLESS_PRODUCTION)) / (totalPower * 100);
+            workingBalance +=
+                (_totalDeposit * userPower * (100 - BOOSTLESS_PRODUCTION)) /
+                (totalPower * 100);
         }
         workingBalance = Math.min(_userDeposit, workingBalance);
 
@@ -314,18 +345,25 @@ contract BoostedLiquidityDistributor is Initializable, Ownable {
     /// @dev Do not reverts if there is no rewards to distribute.
     /// @param account The LP Token depositor whose rewards are to be distributed.
     /// @return The quantity of rewards distributed.
-    function _distributeRewards(address account) internal virtual returns (uint256) {
+    function _distributeRewards(address account)
+        internal
+        virtual
+        returns (uint256)
+    {
         uint256 _userBalance = userBalance[account];
         if (_userBalance <= 0) return 0;
 
         _updateRewardsdistribution();
 
         // Compute undistributed rewards from the delta in rewardsRate since the user deposited
-        uint256 undistributedRewards = (_userBalance * (_rewardsRate - _userRatedRewards[account])) / PRECISION;
+        uint256 undistributedRewards = (_userBalance *
+            (_rewardsRate - _userRatedRewards[account])) / PRECISION;
         if (undistributedRewards <= 0) return 0;
 
         _userRatedRewards[account] = _rewardsRate;
-        _userDistributedRewards[account] = _userDistributedRewards[account] + undistributedRewards;
+        _userDistributedRewards[account] =
+            _userDistributedRewards[account] +
+            undistributedRewards;
 
         return undistributedRewards;
     }
@@ -335,7 +373,8 @@ contract BoostedLiquidityDistributor is Initializable, Ownable {
     function _updateRewardsdistribution() internal virtual {
         if (totalRewards <= 0) return;
         if (endBlock <= _lastDistributedBlock) return;
-        if (_lastDistributedBlock < startBlock) _lastDistributedBlock = startBlock;
+        if (_lastDistributedBlock < startBlock)
+            _lastDistributedBlock = startBlock;
 
         uint256 blocksToDistribute;
         if (block.number <= endBlock) {
@@ -352,7 +391,10 @@ contract BoostedLiquidityDistributor is Initializable, Ownable {
 
         // Update rewards per LP token only if there are deposited tokens
         if (totalBalance > 0) {
-            distributedRewards = distributedRewards + rewardsToDistribute / PRECISION;
+            distributedRewards =
+                distributedRewards +
+                rewardsToDistribute /
+                PRECISION;
             _rewardsRate = _rewardsRate + rewardsToDistribute / totalBalance;
         }
     }
